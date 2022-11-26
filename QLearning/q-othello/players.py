@@ -4,6 +4,219 @@ import random
 
 from reversi import *
 import nn
+import math
+
+class WisePlayer:
+    
+    depth = 4
+    tile = None
+
+    def getOpponent(self, tile):
+        if tile == 'X':
+            return 'O'
+        else:
+            return 'X'
+
+    def getTile(self, board, position):
+        return board[position[0]][position[1]]
+
+    def getMove(self, board, tile):
+        self.tile = tile
+        valid_moves = getValidMoves(board, tile)
+        score, best_move = self.minmax(board, self.depth, tile, -math.inf, math.inf)
+        scores = self.score(board, self.tile)
+        # print("Score: ", scores[0])
+        # print("Coin score: ", scores[1][0])
+        # print("Mobility score: ", scores[1][1])
+        # print("Corner score: ", scores[1][2])
+        # print("Square weight score: ", scores[1][3])
+        # print("Stability score: ", scores[1][4])
+        if best_move in valid_moves:
+            return best_move
+        else:
+            return valid_moves[0]
+
+    def minmax(self, board, depth, tile, alpha, beta):
+        if depth == 0 or (not getValidMoves(board, tile) and not getValidMoves(board, self.getOpponent(tile))):
+            return self.score(board, tile)[0], None
+
+        if not getValidMoves(board, tile):
+            copy_board = getBoardCopy(board)
+            evaluation, _ = self.minmax(copy_board, depth - 1, self.getOpponent(tile), alpha, beta)
+            alpha = max(alpha, evaluation)
+            if beta <= alpha:
+                return -math.inf, None
+            return evaluation, None
+        
+        if tile == self.tile:
+            maxEval = -math.inf
+            best_move = None
+
+            for move in getValidMoves(board, tile):
+                copy_board = getBoardCopy(board)
+                makeMove(copy_board, tile, move[0], move[1])
+                evaluation, _ = self.minmax(copy_board, depth - 1, self.getOpponent(tile), alpha, beta)
+                alpha = max(alpha, evaluation)
+                if beta <= alpha:
+                    break
+                if evaluation > maxEval:
+                    maxEval = evaluation
+                    best_move = move
+                alpha = max(alpha, evaluation)
+                if beta <= alpha:
+                    break
+            return maxEval, best_move
+        else:
+            minEval = math.inf
+            best_move = None
+
+            for move in getValidMoves(board, tile):
+                copy_board = getBoardCopy(board)
+                makeMove(copy_board, tile, move[0], move[1])
+                evaluation, _ = self.minmax(copy_board, depth - 1, self.getOpponent(tile), alpha, beta)
+                beta = min(beta, evaluation)
+                if evaluation < minEval:
+                    minEval = evaluation
+                    best_move = move
+                beta = min(beta, evaluation)
+                if beta <= alpha:
+                    break
+            return minEval, best_move
+    
+    def coin_parity(self, board, max_player, min_player):
+        score = getScoreOfBoard(board)
+        return 100 * (score[max_player] - score[min_player]) / (score[max_player] + score[min_player])
+    
+    def mobility(self, board, tile):
+        max_player_moves = len(getValidMoves(board, tile))
+        min_player_moves = len(getValidMoves(board, self.getOpponent(tile)))
+        if max_player_moves + min_player_moves == 0:
+            return 0
+        return 100 * (max_player_moves - min_player_moves) / (max_player_moves + min_player_moves)
+        
+    def corner_captured(self, board, tile):
+        squares = [[0,0], [0,7], [7,0], [7,7]]
+
+        max_score = 0
+        min_score = 0
+
+        for square in squares:
+            if self.getTile(board, square) == tile:
+                max_score += 1
+            elif self.getTile(board, square) == self.getOpponent(tile):
+                min_score += 1
+        if max_score + min_score == 0:
+            return 0
+          
+        return 100 * (max_score - min_score) / (max_score + min_score)
+
+    def stability(self, board, tile):
+        corners = [[0,0], [0,7], [7,0], [7,7]]
+
+        max_score = 0
+        min_score = 0
+
+        for corner in corners:
+            max_score += self.stability_corner(board, corner, tile)
+            min_score += self.stability_corner(board, corner, self.getOpponent(tile))
+        
+        return max_score - min_score
+
+    def stability_corner(self, board, corner, tile):
+        horizontal_direction = 1 if corner[0] == 0 else -1
+        vertical_direction = 1 if corner[1] == 0 else -1
+
+        stable_positions = []
+        # Percorre a horizontal 
+        for i in range(0, 8):
+            corner_square = corner[0] + i * horizontal_direction, corner[1]
+            
+            # Se a posição conter uma peça do jogador, então percorre a vertical
+            if self.getTile(board, corner_square) == tile:
+                for j in range(0, 8):
+                    stable_square = corner_square[0], corner_square[1] + j * vertical_direction
+                    # Se a posição conter uma peça do jogador, então a posição é estável
+                    if self.getTile(board, stable_square) == tile:
+                        stable_positions.append(stable_square)
+                    else:
+                        break
+            else:
+                break
+        #if len(stable_positions) > 1:
+        #    print(stable_positions)
+        return len(stable_positions)
+            
+
+        
+    def squere_weight(self, board, tile):
+        weight = [
+            [200, -100, 100,  50,  50, 100, -100,  200],
+            [-100, -200, -50, -50, -50, -50, -200, -100],
+            [100,  -50, 100,   0,   0, 100,  -50,  100],
+            [50,  -50,   0,   0,   0,   0,  -50,   50],
+            [50,  -50,   0,   0,   0,   0,  -50,   50],
+            [100,  -50, 100,   0,   0, 100,  -50,  100],
+            [-100, -200, -50, -50, -50, -50, -200, -100],
+            [200, -100, 100,  50,  50, 100, -100,  200],
+        ]
+
+        max_score = 0
+        min_score = 0
+        for i in range(0, 7):
+            for j in range(0, 7):
+                if self.getTile(board, [i, j]) == tile:
+                    max_score += weight[i][j]
+                elif self.getTile(board, [i, j]) == self.getOpponent(tile):
+                    min_score += weight[i][j]
+
+        return max_score - min_score
+
+    def countDiscs(self, board):
+        discs = 0
+        for i in range(0, 7):
+            for j in range(0, 7):
+                if self.getTile(board, [i, j]) == 'X' or self.getTile(board, [i, j]) == 'O':
+                    discs += 1
+        return discs
+
+    def score(self, board, tile):
+        max_player = 'O'
+        min_player = 'X'
+        if tile == 'X':
+            max_player, min_player = min_player, max_player
+        
+        discs = self.countDiscs(board)
+
+        coin_weight = 0
+        mobility_weight = 0
+        corner_weight = 10000
+        stability_weight = 10000
+        square_weight = 0
+
+        # Early game
+        if discs <= 20:
+            mobility_weight = 5
+            square_weight = 20
+        # Mid Game
+        elif discs <= 58:
+            coin_weight = 10
+            mobility_weight = 2
+            square_weight = 100
+        # Late Game
+        else:
+            coin_weight = 500
+            mobility_weight = 0
+
+        
+        coin_score = coin_weight * self.coin_parity(board, max_player, min_player)
+        mobility_score = mobility_weight * self.mobility(board, tile)
+        corner_score = corner_weight * self.corner_captured(board, tile)
+        square_weight_score = square_weight * self.squere_weight(board, tile)
+        stability_score = stability_weight * self.stability(board, tile)
+
+        scores = [coin_score, mobility_score, corner_score, square_weight_score, stability_score]
+        return coin_score + mobility_score + corner_score + square_weight_score + stability_score, scores 
+
 
 class HumanPlayer:
     def getMove(self, board, tile):

@@ -2,10 +2,10 @@ from players import *
 
 if __name__ == "__main__":
     
-    n_games = 5000
+    n_games = 1
     wins = 0
-    opponent = RandomPlayer()
-    kindofplayer = "l" # Change the kind of player that will be used {"h": human player, "r": random player, "s": simple player, "l": reinforcement learning player}
+    opponent = SimplePlayer()
+    kindofplayer = "s" # Change the kind of player that will be used {"h": human player, "r": random player, "s": simple player, "l": reinforcement learning player}
     visible = False
 
     if kindofplayer == "h":
@@ -13,7 +13,7 @@ if __name__ == "__main__":
         visible = True
         n_games = 1
     elif kindofplayer == "s":
-        player = SimplePlayer()
+        player = WisePlayer()
     elif kindofplayer == "r":
         player = RandomPlayer()
     elif kindofplayer == "l":
@@ -46,6 +46,7 @@ if __name__ == "__main__":
                 else:
                     can_play = False if not getValidMoves(mainBoard, "X") else True
 
+            drawBoard(mainBoard)
             turn = "player" if turn == "computer" else "computer"
 
         # Display the final score.
