@@ -6,6 +6,9 @@ from reversi import *
 import nn
 import math
 
+# Constants
+EPSILON = 0.6
+
 class WisePlayer:
     
     depth = 4
@@ -232,11 +235,10 @@ class SimplePlayer:
 
 class RLPlayer:
     def __init__(self, q_lr, discount_factor, net_lr = 0.01):
-        # We ougth to use softmax in this
-        self.policy_net = nn.NN([64, 128, 128, 64, 64], net_lr)
+        self.policy_net = nn.NN([64, 50, 64], net_lr)
 
         # This ought to decay
-        self.epsilon = 0.6
+        self.epsilon = EPSILON
 
         # Variables for Q learning
         self.q_lr = q_lr
@@ -267,7 +269,7 @@ class RLPlayer:
             # Pick the highest desire move
             movex, movey = possible_moves[-1]
 
-        if log_history and movex != 9 and movey != 9:
+        if log_history:
             self.play_history.append((np.copy(input_state), movex*8 + movey))
 
         return movex, movey
@@ -287,8 +289,8 @@ class RLPlayer:
             else:
                 state_, action_ = self.play_history[i]
                 q_next = self.policy_net.getOutput(state_)
-                q[action] += self.q_lr * (self.discount_factor * q_next.max() - q[action])
-                # q[action] += self.discount_factor * np.max(q_next)
+                # q[action] += self.q_lr * (self.discount_factor * np.max(q_next) - q[action])
+                q[action] += self.discount_factor * np.max(q_next)
             
             self.policy_net.backProp(state, self.policy_net.mkVec(q))
 
@@ -296,12 +298,14 @@ class RLPlayer:
                 action, q = action_, q_next
 
     def train(self, n_games, verbose = False):
+        # Train the network by playing 'n_games' games and updating the weights after each game
         for i in range(n_games):
             board = getNewBoard()
             resetBoard(board)
             turn = random.randint(0, 1)
             can_play = True
             
+            # Play the game until it's over or a player can't play
             print("Game: ", i)
             while can_play:
                 if turn == 0:
@@ -322,17 +326,23 @@ class RLPlayer:
             if verbose:
                 drawBoard(board)
                 print("X: %s, O: %s" % (getScoreOfBoard(board)["X"], getScoreOfBoard(board)["O"]))
-
-            if getScoreOfBoard(board)["X"] > getScoreOfBoard(board)["O"]:
+                
+            # Update weights based on final score
+            scorex = getScoreOfBoard(board)["X"]
+            scoreo = getScoreOfBoard(board)["O"]
+            if scorex > scoreo:
                 self.wins += 1
-                self.updateWeights(1)
-            else:
-                self.updateWeights(-1)
+            self.updateWeights((scorex/(scorex+scoreo) - 0.5)*2)
 
             self.play_history = []
-            self.epsilon *= 0.999
 
+            # Decay epsilon linearly over each game until it reaches 0 (no random moves)
+            newEpsilon = EPSILON - EPSILON * (i / n_games)
+            self.epsilon = newEpsilon if newEpsilon > 0 else 0
+
+        # Save the weights to a file
         self.policy_net.save("weights-%s-games" % n_games)
+
         return self.wins
 
 if __name__ == "__main__":
