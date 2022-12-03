@@ -225,11 +225,28 @@ class HumanPlayer:
     def getMove(self, board, tile):
         return getPlayerMove(board, tile)
 
+class GreedyPlayer:
+    def getMove(self, board, tile):
+        # randomize the order of the possible moves
+        possibleMoves = getValidMoves(board, tile)
+        random.shuffle(possibleMoves)
+
+        # Go through all the possible moves and remember the best scoring move
+        bestScore = -1
+        for x, y in possibleMoves:
+            dupeBoard = getBoardCopy(board)
+            makeMove(dupeBoard, tile, x, y)
+            score = getScoreOfBoard(dupeBoard)[tile]
+            if score > bestScore:
+                bestMove = [x, y]
+                bestScore = score
+        return bestMove
+
 class RandomPlayer:
     def getMove(self, board, tile):
         return getRandomMove(board, tile)
 
-class SimplePlayer:
+class CornerPlayer:
     def getMove(self, board, tile):
         return getComputerMove(board, tile)
 
