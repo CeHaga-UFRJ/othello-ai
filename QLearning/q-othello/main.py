@@ -5,7 +5,7 @@ if __name__ == "__main__":
     n_games = 5000
     wins = 0
     opponent = RandomPlayer()
-    kindofplayer = "l" # Change the kind of player that will be used {"h": human player, "r": random player, "c": corner player, "g": greedy player, "l": reinforcement learning player}
+    kindofplayer = "l" # Change the kind of player that will be used {"h": human player, "r": random player, "c": corner player, "g": greedy player, "w": wise player, "l": reinforcement learning player}
     visible = False
 
     if kindofplayer == "h":
@@ -18,9 +18,11 @@ if __name__ == "__main__":
         player = RandomPlayer()
     elif kindofplayer == "g":
         player = GreedyPlayer()
+    elif kindofplayer == "w":
+        player = WisePlayer()
     elif kindofplayer == "l":
         player = RLPlayer(0.1, 1)
-        player.policy_net.load("weights-10000-games")
+        player.policy_net.load("weights-1000-games")
         player.epsilon = 0.0
     else:
         player = RandomPlayer()

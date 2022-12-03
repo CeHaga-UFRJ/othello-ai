@@ -13,11 +13,11 @@ class NN:
             self.layers.append(np.random.normal(0, 1, size=(layer_dims[i+1], layer_dims[i]+1)))
 
     def save(self, filename):
-        with open("./QLearning/weights/" + filename, "wb") as f:
+        with open("QLearning/weights/" + filename, "wb") as f:
             pickle.dump(self.layers, f)
 
     def load(self, filename):
-        with open("./QLearning/weights/" + filename, "rb") as f:
+        with open("QLearning/weights/" + filename, "rb") as f:
             self.layers = pickle.load(f)
 
     def mkVec(self, vector1D, add_bias = True):
