@@ -187,6 +187,19 @@ class OthelloBoard():
             self.to_play *= -1
             return copy.deepcopy(self.board), reward, done, {}
 
+    def score(self):
+        scores = {1: 0, -1: 0}
+        for i in range(len(self.board)):
+            for j in range(len(self.board[i])):
+                if(self.board[i][j] == 1):
+                    scores[1] += 1
+                elif(self.board[i][j] == -1):
+                    scores[-1] += 1
+        return scores
+
+    def get_square_player(self, x, y):
+        return self.board[x][y]
+
 #@Static Function
 def findMovesWithoutEnv(board):
     env = OthelloBoard(8)

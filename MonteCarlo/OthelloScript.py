@@ -1,9 +1,9 @@
-MODE = 't' #Mode, 't' for train, 'h' for play vs human, and 'm' for play vs machine
-PATH = "c:/Users/Lucas/Desktop/Othello/reinforcement-learning-othello-master/weights/" #Path, specify the folder which you want to save/read weights.
+MODE = 'h' #Mode, 't' for train, 'h' for play vs human, and 'm' for play vs machine
+PATH = "C:/Users/Markson/IA/othello-ai/MonteCarlo/weights/" #Path, specify the folder which you want to save/read weights.
 LR = 0.001 #Learning rate, only matters if you're training.
 RANDOM = True #Determines whether there will be randomness in your training.
 SAVE_FREQUENCY = 50 #After how many iterations do you want to save?
-WEIGHTS = [-1] #The list of weights to load. If training or vs human 
+WEIGHTS = [200] #The list of weights to load. If training or vs human 
                    #make the list one length. If play vs machine, you HAVE TO make it length 2.
 TOTAL_EPISODES = 10000 #What's the total number of episodes do you want to run? Only used if training
 

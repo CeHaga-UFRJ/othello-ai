@@ -2,6 +2,7 @@ from OthelloCanvas import *
 from tkinter import *
 from OthelloBoard import OthelloBoard
 from OthelloController import *
+from OthelloPlayer import wisePlayer
 import AlphaBeta
 import time
 from copy import deepcopy
@@ -33,10 +34,46 @@ class OthelloSession(object):
     def play(self, load_num):
         self.controller.load([load_num])
         self.controller.population[0].depth = 3
-        
+
+        wise = wisePlayer()
+        print("Entrou")
+
+        while(True):
+            move = wise.policy(self.env.board, 1)
+            print("Wise move: ", move[0], move[1])
+            if move[0] == -1:
+                self.mc.setBoard(observation)
+                self.mc.update() 
+                move = self.controller.population[0].policy(observation, -1)
+                        
+                observation, reward, done, info = self.env.step(move)
+    
+                self.mc.setBoard(self.env.board)
+                self.mc.after(5000, self.mc.update)
+                continue
+
+            if(self.env.ValidMove(move[0], move[1], 1)):
+                    observation, reward, done, info = self.env.step([move[0], move[1]])
+            
+                    if(done):
+                        print("Done!!!")
+                    else:
+                        self.mc.setBoard(observation)
+                        self.mc.update() 
+                        
+                        move = self.controller.population[0].policy(observation, -1)
+                        
+                        observation, reward, done, info = self.env.step(move)
+            
+                        self.mc.setBoard(self.env.board)
+                        self.mc.after(5000, self.mc.update)
+            else:
+                print("That Move cannot be made, make another one.")
+
+
         def makeMove(event):
             x, y = self.mc.cell_coords(event.x, event.y)
-        
+            print(x,y)
             if(self.env.ValidMove(x,y,1)):
                 observation, reward, done, info = self.env.step([x,y])
         
@@ -70,5 +107,5 @@ class OthelloSession(object):
         self.mc.bind("<Button-1>", makeMove)
         self.mc.bind("<Button-2>", passMove)
         self.mc.update()
-        
         self.root.mainloop()
+        

@@ -270,3 +270,191 @@ class BasicPlayer(RandomPlayer):
                 bestMove = move
         
         return bestMove
+
+class wisePlayer():
+    depth = 4
+    player = 1
+
+    def  __init__(self):
+        pass
+
+    def valid_moves(self, observation, player):
+        new_observation = observation
+
+        if(player == -1):
+            new_observation = reverse(observation)
+
+        possibleMoves = findMovesWithoutEnv(new_observation)
+
+        return possibleMoves
+
+
+    def policy(self, observation, player = 1):       
+        moves = self.valid_moves(observation, self.player)
+
+        score, best_move = self.minmax(observation, self.depth, self.player, -math.inf, math.inf)
+        print(best_move, moves)
+        if best_move in moves:
+            return best_move
+        else:
+            return moves[0] if len(moves) > 0 else [-1, -1]
+    
+    def minmax(self, observation, depth, player, alpha, beta):
+        if depth == 0 or (not self.valid_moves(observation, player * -1) and not self.valid_moves(observation, player * -1)):
+            return self.score(observation, player), None
+
+        # Se o jogador atual não possuir movimentos válidos, passa a vez para o oponente
+        if not self.valid_moves(observation, player):
+            copy_observation = copy.deepcopy(observation)
+            evaluation, _ = self.minmax(copy_observation, depth - 1, player * -1 , alpha, beta)
+            alpha = max(alpha, evaluation)
+            if beta <= alpha:
+                return -math.inf, None
+            return evaluation, None
+
+        if player == self.player:
+            maxEval = -math.inf
+            best_move = None
+            for move in self.valid_moves(observation, player):
+                env = OthelloBoard(8)
+                env.board = copy.deepcopy(observation)
+                env.to_play = player
+                env.MakeMove(move[0], move[1], player)
+                copy_observation = copy.deepcopy(env.board)
+                evaluation, _ = self.minmax(copy_observation, depth - 1, player * -1, alpha, beta)
+                if evaluation > maxEval:
+                    maxEval = evaluation
+                    best_move = move
+                alpha = max(alpha, evaluation)
+                if beta <= alpha:
+                    break
+            return maxEval, best_move
+        else:
+            minEval = math.inf
+            best_move = None
+            for move in self.valid_moves(observation, player):
+                env = OthelloBoard(8)
+                env.board = copy.deepcopy(observation)
+                env.to_play = player
+                env.MakeMove(move[0], move[1], player)
+                copy_observation = copy.deepcopy(env.board)
+                evaluation, _ = self.minmax(copy_observation, depth - 1, player * -1, alpha, beta)
+                if evaluation < minEval:
+                    minEval = evaluation
+                    best_move = move
+                beta = min(beta, evaluation)
+                if beta <= alpha:
+                    break
+            return minEval, best_move
+
+    def coin_parity(self, observation, max_player, min_player):
+        env = OthelloBoard(8)
+        env.board = copy.deepcopy(observation)
+        score = env.score()
+        return 100 * (score[max_player] - score[min_player]) / (score[max_player] + score[min_player])
+
+    def mobility(self, observation, player):
+        max_player_moves = len(self.valid_moves(observation, player))
+        min_player_moves = len(self.valid_moves(observation, player * -1))
+        if max_player_moves + min_player_moves == 0:
+            return 0
+        return 100 * (max_player_moves - min_player_moves) / (max_player_moves + min_player_moves)
+    
+    def corner_captured(self, observation, player):
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+
+        max_score = 0
+        min_score = 0
+
+        env = OthelloBoard(8)
+        env.board = copy.deepcopy(observation)
+
+        for corner in corners:
+            if env.get_square_player(corner[0], corner[1]) == player:
+                max_score += 1
+            elif env.get_square_player(corner[0], corner[1]) == player * -1:
+                min_score += 1
+        if max_score + min_score == 0:
+            return 0
+          
+        return 100 * (max_score - min_score) / (max_score + min_score)
+
+    def stability(self, observation, player):
+        corners = [(0, 0), (0, 7), (7, 0), (7, 7)]
+
+        max_score = 0
+        min_score = 0
+
+        for corner in corners:
+            max_score += self.stability_corner(observation, corner, player)
+            min_score += self.stability_corner(observation, corner, player * -1)
+        
+        return max_score - min_score
+    
+    def stability_corner(self, observation, corner, player):
+        horizontal_direction = 1 if corner[0] == 1 else -1
+        vertical_direction = 1 if corner[1] == 1 else -1
+
+        stable_positions = []
+        env = OthelloBoard(8)
+        env.board = copy.deepcopy(observation)
+        
+        # Percorre a horizontal 
+        for i in range(1, 9):
+            corner_square = corner[0] + i * horizontal_direction, corner[1]
+            
+            # Se a posição conter uma peça do jogador, então percorre a vertical
+            if env.get_square_player(corner_square[0], corner_square[1]) == player:
+                for j in range(1, 9):
+                    stable_square = corner_square[0], corner_square[1] + j * vertical_direction
+                    # Se a posição conter uma peça do jogador, então a posição é estável
+                    if env.get_square_player(stable_square[0], stable_square[1]) == player:
+                        stable_positions.append(stable_square)
+                    else:
+                        break
+            else:
+                break
+        
+        return len(stable_positions)
+
+    def score(self, observation, player):
+        max_player = -1
+        min_player = 1
+        if player == 1:
+            max_player, min_player = min_player, max_player
+        
+        env = OthelloBoard(8)
+        env.board = copy.deepcopy(observation)
+        score = env.score()
+
+        discs = score[-1] + score[1]
+
+        coin_weight = 0
+        mobility_weight = 0
+        corner_weight = 10000
+        stability_weight = 10000
+        square_weight = 0
+
+        # Early game
+        if discs <= 20:
+            mobility_weight = 5
+            square_weight = 20
+        # Mid Game
+        elif discs <= 58:
+            coin_weight = 10
+            mobility_weight = 2
+            square_weight = 100
+        # Late Game
+        else:
+            coin_weight = 500
+            mobility_weight = 0
+
+        
+        coin_score = coin_weight * self.coin_parity(observation, max_player, min_player)
+        mobility_score = mobility_weight * self.mobility(observation, player)
+        corner_score = corner_weight * self.corner_captured(observation, player)
+        square_weight_score = 0# square_weight * self.square_weight(observation, player)
+        stability_score = stability_weight * self.stability(observation, player)
+        print(coin_score + mobility_score + corner_score + square_weight_score + stability_score)
+        scores = [coin_score, mobility_score, corner_score, square_weight_score, stability_score]
+        return coin_score + mobility_score + corner_score + square_weight_score + stability_score
