@@ -1,19 +1,34 @@
 import math
+import time
 class WisePlayer:
-    depth = 4
 
     def __init__(self, color):
         self.color = color
+        self.max_time = 10
+        self.time_margin = 0.94
+        self.start_time = 0
+        self.depth = 60
+        self.starting_depth = 3
+
 
     def play(self, board):
+        self.start_time = time.time()
         valid_moves = board.valid_moves(self.color)
-        score, best_move = self.minmax(board, self.depth, self.color, -math.inf, math.inf)
+        for depth in range(self.starting_depth, self.depth):
+            score, best_move = self.minmax(board, depth, self.color, -math.inf, math.inf)
+            end_time = time.time()
+            if (end_time - self.start_time) > (self.max_time * self.time_margin):
+                break
+        print(f'Levou {round(end_time - self.start_time, 2)}s para jogar')
         if best_move in valid_moves:
             return best_move
         else:
             return valid_moves[0]
 
     def minmax(self, board, depth, color, alpha, beta):
+        end_time = time.time()
+        if (end_time - self.start_time) > (self.max_time * self.time_margin):
+            return self.score(board, color), None
         if depth == 0 or (not board.valid_moves(color) and not board.valid_moves(board._opponent(color))):
             return self.score(board, color), None
 
@@ -120,7 +135,7 @@ class WisePlayer:
             
 
         
-    def squere_weight(self, board, color):
+    def square_weight(self, board, color):
         weight = [
             [200, -100, 100,  50,  50, 100, -100,  200],
             [-100, -200, -50, -50, -50, -50, -200, -100],
@@ -176,7 +191,7 @@ class WisePlayer:
         coin_score = coin_weight * self.coin_parity(board, max_player, min_player)
         mobility_score = mobility_weight * self.mobility(board, color)
         corner_score = corner_weight * self.corner_captured(board, color)
-        square_weight_score = square_weight * self.squere_weight(board, color)
+        square_weight_score = square_weight * self.square_weight(board, color)
         stability_score = stability_weight * self.stability(board, color)
 
 
