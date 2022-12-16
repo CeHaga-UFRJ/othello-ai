@@ -1,6 +1,8 @@
 import math
 import time
-class WisePlayer:
+from threading import Thread
+
+class ThreadingPlayer:
 
     def __init__(self, color):
         self.color = color
@@ -10,19 +12,58 @@ class WisePlayer:
         self.depth = 60
         self.starting_depth = 3
 
+    class MinMaxThread(Thread):
+        def __init__(self, board, depth, color, alpha, beta, player, move):
+            Thread.__init__(self)
+            self.board = board
+            self.depth = depth
+            self.color = color
+            self.alpha = alpha
+            self.beta = beta
+            self.player = player
+            self.score = None
+            self.move = move
+
+        def run(self):
+            self.score, _ = self.player.minmax(self.board, self.depth, self.color, self.alpha, self.beta)
+
 
     def play(self, board):
         self.start_time = time.time()
+        best_move = None
+        best_score = -math.inf
+        time_over = False
         valid_moves = board.valid_moves(self.color)
+        end_time = time.time()
         for depth in range(self.starting_depth, self.depth):
-            score, best_move = self.minmax(board, depth, self.color, -math.inf, math.inf)
+            threads = []
+            for move in valid_moves:
+                copy_board = board.get_clone()
+                copy_board.play(move, self.color)
+                threads.append(self.MinMaxThread(copy_board, depth, board._opponent(self.color), -math.inf, math.inf, self, move))
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+                if (end_time - self.start_time) > (self.max_time * self.time_margin):
+                    time_over = True
+                    break
+            if time_over: break
+            best_move = None
+            best_score = -math.inf
+            for thread in threads:
+                print('depth: ', depth, 'score: ', thread.score, 'move: ', thread.move)
+                if thread.score > best_score:
+                    best_move = thread.move
+                    best_score = thread.score
+            print('best_move: ', best_move)
             end_time = time.time()
-            if (end_time - self.start_time) > (self.max_time * self.time_margin):
-                break
+            if (end_time - self.start_time) > (self.max_time * self.time_margin): break
         print(f'Levou {round(end_time - self.start_time, 2)}s para jogar')
         if best_move in valid_moves:
             return best_move
         else:
+            print("AAAAAAAAAAAAALGO DEU ERRRAAAADOOOO")
             return valid_moves[0]
 
     def minmax(self, board, depth, color, alpha, beta):
